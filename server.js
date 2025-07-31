@@ -3,8 +3,8 @@ const app = express();
 const port = 3000;
 
 // Middleware para analisar o corpo das solicitações como JSON e texto
-app.use(express.json());
 app.use(express.text({ type: 'text/html' }));
+app.use(express.json());
 
 // Configura o EJS como motor de visualização
 app.set('view engine', 'ejs');
