@@ -2,16 +2,11 @@ const express = require('express');
 const app = express();
 const port = 3000;
 
-// --- DIAGNÓSTICO E CORREÇÃO ---
-// Vamos remover o express.json() completamente por enquanto para forçar
-// o express.text() a ser o único a processar o corpo da requisição.
-// Isso elimina qualquer conflito de middleware.
-app.use(express.text({ type: 'text/html' }));
+// IMPORTANTE: Não usaremos NENHUM middleware de body-parser global (app.use).
+// Vamos processar o corpo da requisição manualmente dentro da própria rota.
 
-// Configura o EJS como motor de visualização
 app.set('view engine', 'ejs');
 
-// Variável para armazenar o HTML recebido
 let htmlContent = '<h2>Aguardando conteúdo do n8n...</h2>';
 
 // Rota principal para exibir o HTML
@@ -21,18 +16,37 @@ app.get('/', (req, res) => {
 
 // Rota de Webhook para receber o HTML do n8n
 app.post('/webhook', (req, res) => {
-    // --- LOGS PARA DIAGNÓSTICO ---
-    // Vamos imprimir no console do Coolify exatamente o que estamos recebendo.
-    console.log('--- NOVO WEBHOOK RECEBIDO ---');
-    console.log('CABEÇALHOS (Headers):', JSON.stringify(req.headers, null, 2));
-    console.log('CORPO BRUTO (req.body):', req.body);
-    console.log('TIPO DO CORPO (typeof req.body):', typeof req.body);
-    console.log('-----------------------------');
+    // Verificamos se o header está correto, como boa prática.
+    if (req.headers['content-type'] === 'text/html') {
+        let bodyData = '';
 
-    // A variável 'req.body' já deve ser o texto HTML puro por causa do middleware
-    htmlContent = req.body;
+        // Escutamos o evento 'data'. Ele é chamado sempre que um pedaço (chunk) de dados chega.
+        req.on('data', (chunk) => {
+            // Concatenamos os pedaços para montar o corpo completo.
+            bodyData += chunk.toString();
+        });
 
-    res.status(200).send('Conteúdo HTML recebido e logado.');
+        // Escutamos o evento 'end'. Ele é chamado quando a requisição inteira foi recebida.
+        req.on('end', () => {
+            console.log('--- LEITURA MANUAL DO CORPO ---');
+            console.log('CORPO FINAL RECEBIDO:', bodyData);
+            console.log('---------------------------------');
+
+            // Agora 'bodyData' contém o HTML puro, exatamente como foi enviado.
+            htmlContent = bodyData;
+            res.status(200).send('Conteúdo recebido manualmente com sucesso.');
+        });
+
+        // Lidamos com possíveis erros durante o recebimento dos dados.
+        req.on('error', (err) => {
+            console.error("Erro no stream da requisição:", err);
+            res.status(500).send("Erro ao processar a requisição.");
+        });
+
+    } else {
+        // Se o Content-Type não for o esperado, retornamos um erro.
+        res.status(400).send('Content-Type incorreto. Esperado: text/html');
+    }
 });
 
 app.listen(port, () => {
