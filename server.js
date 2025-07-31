@@ -2,10 +2,11 @@ const express = require('express');
 const app = express();
 const port = 3000;
 
-// Middleware para analisar o corpo das solicitações
-// CORRETO: O parser de texto específico vem PRIMEIRO
+// --- DIAGNÓSTICO E CORREÇÃO ---
+// Vamos remover o express.json() completamente por enquanto para forçar
+// o express.text() a ser o único a processar o corpo da requisição.
+// Isso elimina qualquer conflito de middleware.
 app.use(express.text({ type: 'text/html' }));
-app.use(express.json());
 
 // Configura o EJS como motor de visualização
 app.set('view engine', 'ejs');
@@ -20,11 +21,18 @@ app.get('/', (req, res) => {
 
 // Rota de Webhook para receber o HTML do n8n
 app.post('/webhook', (req, res) => {
-    // O n8n enviará o HTML no corpo da solicitação
-    // Usamos 'req.body' pois o middleware 'express.text' irá processá-lo
+    // --- LOGS PARA DIAGNÓSTICO ---
+    // Vamos imprimir no console do Coolify exatamente o que estamos recebendo.
+    console.log('--- NOVO WEBHOOK RECEBIDO ---');
+    console.log('CABEÇALHOS (Headers):', JSON.stringify(req.headers, null, 2));
+    console.log('CORPO BRUTO (req.body):', req.body);
+    console.log('TIPO DO CORPO (typeof req.body):', typeof req.body);
+    console.log('-----------------------------');
+
+    // A variável 'req.body' já deve ser o texto HTML puro por causa do middleware
     htmlContent = req.body;
-    console.log("HTML recebido via webhook!");
-    res.status(200).send('Conteúdo HTML recebido com sucesso!');
+
+    res.status(200).send('Conteúdo HTML recebido e logado.');
 });
 
 app.listen(port, () => {
